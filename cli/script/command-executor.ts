@@ -25,6 +25,7 @@ import * as yazl from "yazl";
 var which = require("which");
 import wordwrap = require("wordwrap");
 import * as cli from "../definitions/cli";
+import * as releaseHook from "./release-hook";
 import { AccessKey, Account, App, CollaboratorMap, CollaboratorProperties, Deployment, DeploymentMetrics, Headers, Package, PackageInfo, Session, UpdateMetrics } from "code-push/script/types";
 
 var configFilePath: string = path.join(process.env.LOCALAPPDATA || process.env.HOME, ".code-push.config");
@@ -1104,6 +1105,7 @@ export var release = (command: cli.IReleaseCommand): Promise<void> => {
         isSingleFilePackage = false;
         getPackageFilePromise = Promise<IPackageFile>((resolve: (file: IPackageFile) => void, reject: (reason: Error) => void): void => {
             var directoryPath: string = filePath;
+            var baseDirectoryPath = path.dirname(directoryPath);
 
             recursiveFs.readdirr(directoryPath, (error?: any, directories?: string[], files?: string[]): void => {
                 if (error) {
@@ -1111,7 +1113,6 @@ export var release = (command: cli.IReleaseCommand): Promise<void> => {
                     return;
                 }
 
-                var baseDirectoryPath = path.dirname(directoryPath);
                 var fileName: string = generateRandomFilename(15) + ".zip";
                 var zipFile = new yazl.ZipFile();
                 var writeStream: fs.WriteStream = fs.createWriteStream(fileName);
@@ -1171,7 +1172,7 @@ export var release = (command: cli.IReleaseCommand): Promise<void> => {
                 })
                 .finally((): void => {
                     if (file.isTemporary) {
-                        fs.unlinkSync(filePath);
+                        // fs.unlinkSync(filePath);
                     }
                 });
         });
