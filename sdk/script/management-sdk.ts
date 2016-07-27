@@ -77,12 +77,12 @@ class AccountManager {
             this.attachCredentials(request);
 
             request.end((err: any, res: superagent.Response) => {
-                if (err && err.status !== 401) {
-                    reject(<CodePushError>{ message: this.getErrorMessage(err, res) });
+                var status: number = res ? res.status : err.status;
+                if (err && status !== 401) {
+                    reject(<CodePushError>{ message: this.getErrorMessage(err, res), statusCode: status });
                     return;
                 }
 
-                var status: number = res ? res.status : err.status;
                 var authenticated: boolean = status === 200;
 
                 resolve(authenticated);
@@ -310,7 +310,7 @@ class AccountManager {
                 })
                 .end((err: any, res: superagent.Response) => {
                     if (err) {
-                        reject(<CodePushError>{ message: this.getErrorMessage(err, res) });
+                        reject(<CodePushError>{ message: this.getErrorMessage(err, res), statusCode: res.status });
                         return;
                     }
 
@@ -323,7 +323,7 @@ class AccountManager {
                         }
 
                         if (body) {
-                            reject(<CodePushError>body);
+                            reject(<CodePushError>{ message: body.message, statusCode: res.status });
                         } else {
                             reject(<CodePushError>{ message: res.text, statusCode: res.status });
                         }
@@ -406,7 +406,7 @@ class AccountManager {
                     }
                 } else {
                     if (body) {
-                        reject(<CodePushError>body);
+                        reject(<CodePushError>{ message: body.message, statusCode: res.status});
                     } else {
                         reject(<CodePushError>{ message: res.text, statusCode: res.status });
                     }
