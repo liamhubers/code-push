@@ -25,7 +25,7 @@ import * as yazl from "yazl";
 var which = require("which");
 import wordwrap = require("wordwrap");
 import * as cli from "../definitions/cli";
-import { AccessKey, Account, App, CollaboratorMap, CollaboratorProperties, Deployment, DeploymentMetrics, Headers, Package, PackageInfo, Session, UpdateMetrics } from "code-push/script/types";
+import { AccessKey, Account, App, CodePushError, CollaboratorMap, CollaboratorProperties, Deployment, DeploymentMetrics, Headers, Package, PackageInfo, Session, UpdateMetrics } from "code-push/script/types";
 
 var configFilePath: string = path.join(process.env.LOCALAPPDATA || process.env.HOME, ".code-push.config");
 var emailValidator = require("email-validator");
@@ -843,7 +843,7 @@ function getReactNativeProjectAppVersion(command: cli.IReleaseReactCommand, proj
     };
 
     const isValidVersion = (version: string): boolean => !!semver.valid(version) || /^\d+\.\d+$/.test(version);
-        
+
     log(chalk.cyan(`Detecting ${command.platform} app version:\n`));
 
     if (command.platform === "ios") {
@@ -869,7 +869,7 @@ function getReactNativeProjectAppVersion(command: cli.IReleaseReactCommand, proj
                 path.join(iOSDirectory, projectName, plistFileName),
                 path.join(iOSDirectory, plistFileName)
             ];
-            
+
             resolvedPlistFile = (<any>knownLocations).find(fileExists);
 
             if (!resolvedPlistFile) {
@@ -900,7 +900,7 @@ function getReactNativeProjectAppVersion(command: cli.IReleaseReactCommand, proj
         if (fileDoesNotExistOrIsDirectory(buildGradlePath)) {
             throw new Error(`Unable to find the "build.gradle" file in your "android/app" directory.`);
         }
-        
+
         return g2js.parseFile(buildGradlePath)
             .catch(() => {
                 throw new Error(`Unable to parse the "${buildGradlePath}" file. Please ensure it is a well-formed Gradle file.`);
@@ -941,7 +941,7 @@ function getReactNativeProjectAppVersion(command: cli.IReleaseReactCommand, proj
                 const propertiesFile: string = (<any>knownLocations).find(fileExists);
                 const propertiesContent: string = fs.readFileSync(propertiesFile).toString();
 
-                try {    
+                try {
                     const parsedProperties: any = properties.parse(propertiesContent);
                     appVersion = parsedProperties[propertyName];
                 } catch (e) {
@@ -951,7 +951,7 @@ function getReactNativeProjectAppVersion(command: cli.IReleaseReactCommand, proj
                 if (!appVersion) {
                     throw new Error(`No property named "${propertyName}" exists in the "${propertiesFile}" file.`);
                 }
-                
+
                 if (!isValidVersion(appVersion)) {
                     throw new Error(`The "${propertyName}" property in the "${propertiesFile}" file needs to specify a valid semver string, containing both a major and minor version (e.g. 1.3.2, 1.1).`);
                 }
@@ -1162,6 +1162,7 @@ export var release = (command: cli.IReleaseCommand): Promise<void> => {
                 .then((): void => {
                     log("Successfully released an update containing the \"" + command.package + "\" " + (isSingleFilePackage ? "file" : "directory") + " to the \"" + command.deploymentName + "\" deployment of the \"" + command.appName + "\" app.");
                 })
+                .catch((err: CodePushError) => console.log(err.statusCode))
                 .finally((): void => {
                     if (file.isTemporary) {
                         fs.unlinkSync(filePath);
