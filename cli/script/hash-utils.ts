@@ -26,6 +26,8 @@ export function generatePackageHashFromDirectory(directoryPath: string, basePath
 
     return generatePackageManifestFromDirectory(directoryPath, basePath)
         .then((manifest: PackageManifest) => {
+            console.log("Manifest:");
+            console.dir(manifest);
             return manifest.computePackageHash()
         });
 }
@@ -225,7 +227,7 @@ export class PackageManifest {
     }
 
     public static normalizePath(filePath: string): string {
-        return filePath.replace("\\", "/");
+        return filePath.replace(/\\/g, "/");
     }
 
     public static isIgnored(relativeFilePath: string): boolean {

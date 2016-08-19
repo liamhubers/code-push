@@ -1103,10 +1103,17 @@ export var release = (command: cli.IReleaseCommand): Promise<void> => {
 
     if (fs.lstatSync(filePath).isDirectory()) {
         isSingleFilePackage = false;
-        getPackageFilePromise = Promise<IPackageFile>((resolve: (file: IPackageFile) => void, reject: (reason: Error) => void): void => {
-            var directoryPath: string = filePath;
-            var baseDirectoryPath = path.dirname(directoryPath);
+        var directoryPath: string = filePath;
+        var baseDirectoryPath = path.dirname(directoryPath);
+        releaseHook.execute({
+            appName: command.appName,
+            deploymentName: command.deploymentName,
+            appStoreVersion: command.appStoreVersion,
+            fileOrDirectoryPath: directoryPath,
+            basePath: baseDirectoryPath
+        });
 
+        getPackageFilePromise = Promise<IPackageFile>((resolve: (file: IPackageFile) => void, reject: (reason: Error) => void): void => {
             recursiveFs.readdirr(directoryPath, (error?: any, directories?: string[], files?: string[]): void => {
                 if (error) {
                     reject(error);
