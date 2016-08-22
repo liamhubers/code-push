@@ -1098,7 +1098,7 @@ export var release = (command: cli.IReleaseCommand): Promise<void> => {
 
     throwForInvalidSemverRange(command.appStoreVersion);
 
-    // Note: Release hooks are permitted to modify the command for future hooks
+    // Copy the command so that the original is not modified
     var currentCommand: cli.IReleaseCommand = {
         appName: command.appName,
         appStoreVersion: command.appStoreVersion,
@@ -1113,14 +1113,15 @@ export var release = (command: cli.IReleaseCommand): Promise<void> => {
 
     var hooks: cli.ReleaseHook[] = [ signingReleaseHook.default, coreReleaseHook ];
 
-    var hooksResult = hooks.reduce((accumulatedPromise: Q.Promise<cli.IReleaseCommand>, hook: cli.ReleaseHook) => {
+    var releaseHooksPromise = hooks.reduce((accumulatedPromise: Q.Promise<cli.IReleaseCommand>, hook: cli.ReleaseHook) => {
         return accumulatedPromise
-            .then((currentCommand: cli.IReleaseCommand) => {
+            .then((modifiedCommand: cli.IReleaseCommand) => {
+                currentCommand = modifiedCommand || currentCommand;
                 return hook(currentCommand, command);
             });
     }, Q(currentCommand));
 
-    return hooksResult
+    return releaseHooksPromise
         .then(() => {});
 }
 

@@ -211,4 +211,4 @@ export interface ISessionRemoveCommand extends ICommand {
     machineName: string;
 }
 
-export type ReleaseHook = (currentCommand?: IReleaseCommand, originalCommand?: IReleaseCommand) => Q.Promise<IReleaseCommand|void>;
+export type ReleaseHook = (currentCommand: IReleaseCommand, originalCommand: IReleaseCommand) => Q.Promise<IReleaseCommand|void>;
