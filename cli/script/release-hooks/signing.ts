@@ -7,7 +7,7 @@ import * as q from "q";
 import * as hashUtils from "../hash-utils";
 
 var CURRENT_CLAIM_VERSION: string = "1.0.0";
-var JWT_FILE_NAME: string = ".codepushrelease"
+var METADATA_FILE_NAME: string = ".codepushrelease"
 
 interface CodeSigningClaims {
     claimVersion: string;
@@ -53,7 +53,7 @@ export default function sign(command: cli.IReleaseCommand): q.Promise<cli.IRelea
         throw new Error("Signing something that's not a directory");
     }
 
-    var signatureFilePath = path.join(command.path, JWT_FILE_NAME);
+    var signatureFilePath = path.join(command.path, METADATA_FILE_NAME);
 
     return q(<void>null)
         .then(() => {
