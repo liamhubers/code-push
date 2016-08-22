@@ -1,3 +1,4 @@
+import * as cli from "../definitions/cli";
 import * as crypto from "crypto";
 import * as fs from "fs";
 import * as jwt from "jsonwebtoken";
@@ -5,34 +6,22 @@ import * as path from "path";
 import * as q from "q";
 import * as hashUtils from "./hash-utils";
 
-export interface ReleaseHookParams {
-    appName: string;
-    deploymentName: string;
-    appStoreVersion: string;
-    fileOrDirectoryPath: string;
-    basePath: string;
+export function execute(command: cli.IReleaseCommand): q.Promise<void> {
+    console.dir(command);
+    console.log();
+    return sign(command);
 }
 
-export function execute(params: ReleaseHookParams): q.Promise<void> {
-    console.log("Called release hook with:");
-    console.dir(params);
-    return sign(params);
-}
-
-var CURRENT_SIGNATURE_VERSION: string = "1.0.0";
+var CURRENT_CLAIM_VERSION: string = "1.0.0";
 var HASH_ALGORITHM: string = "sha256";
 var PRIVATE_KEY_PATH: string;
 
 interface CodeSigningClaims {
-    version: string;
+    claimVersion: string;
     // deploymentKey: string;
     // appStoreVersion: string;
-    hash: string;
+    contentHash: string;
 }
-
-// interface SignedMetadata extends CodeSigningClaims {
-//     signature: string;
-// }
 
 // Test keys, not sensitive
 var privateKey =
@@ -60,19 +49,20 @@ mbUv6TMatNHCXsTctrJv+zvi0JjPF59DdCwP1CPe4m/c2N4wH+3pMUQvR4bM+q6R
 GXyD4f2846NDHTUrrwIDAQAB
 -----END PUBLIC KEY-----`;
 
-function sign(params: ReleaseHookParams): q.Promise<void> {
+function sign(command: cli.IReleaseCommand): q.Promise<void> {
     // If signature file already exists, throw error
-    if (!fs.lstatSync(params.fileOrDirectoryPath).isDirectory()) {
+    if (!fs.lstatSync(command.path).isDirectory()) {
         // TODO: Make it a directory
         throw new Error("Signing something that's not a directory");
     }
 
-    return hashUtils.generatePackageHashFromDirectory(params.fileOrDirectoryPath, params.basePath)
+    return hashUtils.generatePackageHashFromDirectory(command.path, path.join(command.path, ".."))
         .then((hash: string) => {
-            console.log("hash: " + hash);
+            console.log(hash);
+            console.log();
             var claims: CodeSigningClaims = {
-                version: CURRENT_SIGNATURE_VERSION,
-                hash: hash
+                claimVersion: CURRENT_CLAIM_VERSION,
+                contentHash: hash
             };
 
             // TODO: x5t?
@@ -80,6 +70,21 @@ function sign(params: ReleaseHookParams): q.Promise<void> {
         })
         .then((signedJwt: string) => {
             console.log(signedJwt);
-            // Write file to disk
+            console.log();
+            var deferred = q.defer<void>();
+
+            fs.writeFile(path.join(command.path, "codepush.jwt"), signedJwt, (err: Error) => {
+                if (err) {
+                    deferred.reject(err);
+                } else {
+                    deferred.resolve(<void>null);
+                }
+            });
+
+            return deferred.promise;
+        })
+        .catch((err: Error) => {
+            err.message = `Could not sign package: ${err.message}`;
+            return q.reject<void>(err);
         });
 }

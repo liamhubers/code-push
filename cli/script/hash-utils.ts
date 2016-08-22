@@ -26,8 +26,8 @@ export function generatePackageHashFromDirectory(directoryPath: string, basePath
 
     return generatePackageManifestFromDirectory(directoryPath, basePath)
         .then((manifest: PackageManifest) => {
-            console.log("Manifest:");
             console.dir(manifest);
+            console.log();
             return manifest.computePackageHash()
         });
 }
@@ -111,7 +111,7 @@ export function generatePackageManifestFromDirectory(directoryPath: string, base
         }
 
         if (!files || files.length === 0) {
-            deferred.reject("Error: Can't sign the release because no files were found.");
+            deferred.reject("Can't hash the directory because no files were found.");
             return;
         }
 

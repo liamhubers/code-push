@@ -770,7 +770,7 @@ function createCommand(): cli.ICommand {
                     var releaseCommand = <cli.IReleaseCommand>cmd;
 
                     releaseCommand.appName = arg1;
-                    releaseCommand.package = arg2;
+                    releaseCommand.path = arg2;
                     releaseCommand.appStoreVersion = arg3;
                     releaseCommand.deploymentName = argv["deploymentName"];
                     releaseCommand.description = argv["description"] ? backslash(argv["description"]) : "";
