@@ -25,7 +25,7 @@ import * as yazl from "yazl";
 var which = require("which");
 import wordwrap = require("wordwrap");
 import * as cli from "../definitions/cli";
-import * as releaseHook from "./release-hook";
+import * as signingReleaseHook from "./release-hooks/signing";
 import { AccessKey, Account, App, CollaboratorMap, CollaboratorProperties, Deployment, DeploymentMetrics, Headers, Package, PackageInfo, Session, UpdateMetrics } from "code-push/script/types";
 
 var configFilePath: string = path.join(process.env.LOCALAPPDATA || process.env.HOME, ".code-push.config");
@@ -1099,25 +1099,49 @@ export var release = (command: cli.IReleaseCommand): Promise<void> => {
     throwForInvalidSemverRange(command.appStoreVersion);
 
     // Note: Release hooks are permitted to modify the command for future hooks
-    var originalPath = command.path;
+    var currentCommand: cli.IReleaseCommand = {
+        appName: command.appName,
+        appStoreVersion: command.appStoreVersion,
+        deploymentName: command.deploymentName,
+        description: command.description,
+        disabled: command.disabled,
+        mandatory: command.mandatory,
+        path: command.path,
+        rollout: command.rollout,
+        type: command.type
+    };
 
-    return releaseHook.execute(command)
-        .then((): Promise<ReleaseFile[]> => {
+    var hooks: cli.ReleaseHook[] = [ signingReleaseHook.default, coreReleaseHook ];
+
+    var hooksResult = hooks.reduce((accumulatedPromise: Q.Promise<cli.IReleaseCommand>, hook: cli.ReleaseHook) => {
+        return accumulatedPromise
+            .then((currentCommand: cli.IReleaseCommand) => {
+                return hook(currentCommand, command);
+            });
+    }, Q(currentCommand));
+
+    return hooksResult
+        .then(() => {});
+}
+
+var coreReleaseHook: cli.ReleaseHook = (currentCommand: cli.IReleaseCommand, originalCommand: cli.IReleaseCommand): Promise<cli.IReleaseCommand> => {
+    return Q(<void>null)
+        .then(() => {
             var releaseFiles: ReleaseFile[] = [];
 
-            if (!fs.lstatSync(command.path).isDirectory()) {
+            if (!fs.lstatSync(currentCommand.path).isDirectory()) {
                 releaseFiles.push({
-                    sourceLocation: command.path,
-                    targetLocation: path.basename(command.path)  // Put the file in the root
+                    sourceLocation: currentCommand.path,
+                    targetLocation: path.basename(currentCommand.path)  // Put the file in the root
                 });
                 return Q(releaseFiles);
             }
 
             var deferred = Q.defer<ReleaseFile[]>();
-            var directoryPath: string = command.path;
+            var directoryPath: string = currentCommand.path;
             var baseDirectoryPath = path.join(directoryPath, "..");     // For legacy reasons, put the root directory in the zip
 
-            recursiveFs.readdirr(command.path, (error?: any, directories?: string[], files?: string[]): void => {
+            recursiveFs.readdirr(currentCommand.path, (error?: any, directories?: string[], files?: string[]): void => {
                 if (error) {
                     deferred.reject(error);
                     return;
@@ -1162,7 +1186,7 @@ export var release = (command: cli.IReleaseCommand): Promise<void> => {
             });
 
         })
-        .then((packagePath: string): Promise<void> => {
+        .then((packagePath: string): Promise<cli.IReleaseCommand> => {
             var lastTotalProgress = 0;
             var progressBar = new progress("Upload progress:[:bar] :percent :etas", {
                 complete: "=",
@@ -1177,19 +1201,20 @@ export var release = (command: cli.IReleaseCommand): Promise<void> => {
             };
 
             var updateMetadata: PackageInfo = {
-                description: command.description,
-                isDisabled: command.disabled,
-                isMandatory: command.mandatory,
-                rollout: command.rollout
+                description: currentCommand.description,
+                isDisabled: currentCommand.disabled,
+                isMandatory: currentCommand.mandatory,
+                rollout: currentCommand.rollout
             };
 
-            return sdk.release(command.appName, command.deploymentName, packagePath, command.appStoreVersion, updateMetadata, uploadProgress)
+            return sdk.release(currentCommand.appName, currentCommand.deploymentName, packagePath, currentCommand.appStoreVersion, updateMetadata, uploadProgress)
                 .then((): void => {
-                    log(`Successfully released an update containing the "${originalPath}" `
-                        + `${fs.lstatSync(originalPath).isDirectory()  ? "directory" : "file"}`
-                        + ` to the "${command.deploymentName}" deployment of the "${command.appName}" app.`);
+                    log(`Successfully released an update containing the "${originalCommand.path}" `
+                        + `${fs.lstatSync(originalCommand.path).isDirectory()  ? "directory" : "file"}`
+                        + ` to the "${currentCommand.deploymentName}" deployment of the "${currentCommand.appName}" app.`);
                 })
-                .finally((): void => {
+                .then(() => currentCommand)
+                .finally(() => {
                     fs.unlinkSync(packagePath);
                 });
         });
